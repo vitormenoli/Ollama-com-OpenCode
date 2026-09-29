@@ -1,0 +1,1129 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Ollama + OpenCode — IA 100% Local</title>
+<meta name="description" content="Guia completo para rodar IA localmente com Ollama integrado ao OpenCode. Privado, rápido e sem nuvem." />
+
+<style>
+/* ============ RESET & VARIÁVEIS ============ */
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg: #07090f;
+  --bg-soft: #0d111c;
+  --card: rgba(255, 255, 255, 0.035);
+  --card-border: rgba(255, 255, 255, 0.08);
+  --txt: #e8ecf4;
+  --txt-dim: #9aa3b5;
+  --accent: #7c6cff;
+  --accent-2: #38d9c8;
+  --accent-3: #ff6ec7;
+  --grad: linear-gradient(135deg, #7c6cff 0%, #38d9c8 100%);
+  --radius: 18px;
+  --font: 'Segoe UI', system-ui, -apple-system, 'Inter', sans-serif;
+  --mono: 'Cascadia Code', 'Fira Code', Consolas, monospace;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--txt);
+  overflow-x: hidden;
+  line-height: 1.7;
+}
+
+::selection { background: rgba(124,108,255,.35); }
+
+/* ============ FUNDO ANIMADO ============ */
+#bg-grid {
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  background-image:
+    linear-gradient(rgba(124,108,255,.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(124,108,255,.05) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: radial-gradient(ellipse 90% 70% at 50% 0%, black 40%, transparent 100%);
+  -webkit-mask-image: radial-gradient(ellipse 90% 70% at 50% 0%, black 40%, transparent 100%);
+}
+
+.glow-orb {
+  position: fixed;
+  border-radius: 50%;
+  filter: blur(120px);
+  z-index: -1;
+  opacity: .28;
+  pointer-events: none;
+  animation: orbFloat 14s ease-in-out infinite alternate;
+}
+.orb-1 { width: 480px; height: 480px; background: #7c6cff; top: -180px; left: -120px; }
+.orb-2 { width: 420px; height: 420px; background: #38d9c8; top: 30%; right: -160px; animation-delay: -5s; }
+.orb-3 { width: 380px; height: 380px; background: #ff6ec7; bottom: -160px; left: 30%; animation-delay: -9s; }
+
+@keyframes orbFloat {
+  0%   { transform: translate(0, 0) scale(1); }
+  100% { transform: translate(40px, 60px) scale(1.15); }
+}
+
+/* ============ NAVBAR ============ */
+nav {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 6vw;
+  transition: background .4s ease, box-shadow .4s ease, padding .4s ease;
+}
+nav.scrolled {
+  background: rgba(9, 12, 20, .82);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 8px 32px rgba(0,0,0,.45);
+  padding: 12px 6vw;
+  border-bottom: 1px solid rgba(255,255,255,.05);
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  font-size: 1.1rem;
+  letter-spacing: .3px;
+  text-decoration: none;
+  color: var(--txt);
+}
+.logo-mark {
+  width: 34px; height: 34px;
+  border-radius: 10px;
+  background: var(--grad);
+  display: grid;
+  place-items: center;
+  font-size: 1.05rem;
+  box-shadow: 0 4px 18px rgba(124,108,255,.45);
+  transition: transform .35s ease;
+}
+.logo:hover .logo-mark { transform: rotate(-8deg) scale(1.08); }
+
+.nav-links {
+  display: flex;
+  gap: 32px;
+  list-style: none;
+}
+.nav-links a {
+  color: var(--txt-dim);
+  text-decoration: none;
+  font-size: .92rem;
+  font-weight: 500;
+  position: relative;
+  transition: color .3s;
+}
+.nav-links a::after {
+  content: '';
+  position: absolute;
+  left: 0; bottom: -5px;
+  width: 0; height: 2px;
+  background: var(--grad);
+  border-radius: 2px;
+  transition: width .35s cubic-bezier(.25,.8,.25,1);
+}
+.nav-links a:hover { color: var(--txt); }
+.nav-links a:hover::after { width: 100%; }
+
+.hamburger {
+  display: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+  flex-direction: column;
+  gap: 5px;
+  padding: 6px;
+}
+.hamburger span {
+  width: 24px; height: 2px;
+  background: var(--txt);
+  border-radius: 2px;
+  transition: transform .35s ease, opacity .3s;
+}
+.hamburger.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+.hamburger.open span:nth-child(2) { opacity: 0; }
+.hamburger.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+/* ============ HERO ============ */
+.hero {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 120px 6vw 80px;
+  position: relative;
+}
+
+.hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(124,108,255,.12);
+  border: 1px solid rgba(124,108,255,.25);
+  border-radius: 50px;
+  padding: 8px 20px;
+  font-size: .85rem;
+  font-weight: 600;
+  color: var(--accent);
+  margin-bottom: 28px;
+  letter-spacing: .5px;
+}
+.hero-badge .dot {
+  width: 8px; height: 8px;
+  background: var(--accent-2);
+  border-radius: 50%;
+  animation: pulse 2s infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: .4; transform: scale(1.4); }
+}
+
+.hero h1 {
+  font-size: clamp(2.6rem, 6vw, 4.4rem);
+  font-weight: 800;
+  line-height: 1.15;
+  margin-bottom: 22px;
+  background: linear-gradient(135deg, #fff 30%, var(--accent) 70%, var(--accent-2));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.hero p {
+  font-size: 1.15rem;
+  color: var(--txt-dim);
+  max-width: 620px;
+  margin: 0 auto 40px;
+  line-height: 1.75;
+}
+
+.hero-actions {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 15px 32px;
+  border-radius: 14px;
+  font-size: .95rem;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  border: none;
+  transition: transform .3s ease, box-shadow .3s ease;
+}
+.btn:hover { transform: translateY(-3px); }
+.btn-primary {
+  background: var(--grad);
+  color: #fff;
+  box-shadow: 0 8px 28px rgba(124,108,255,.35);
+}
+.btn-primary:hover {
+  box-shadow: 0 14px 40px rgba(124,108,255,.5);
+}
+.btn-ghost {
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  color: var(--txt);
+}
+.btn-ghost:hover {
+  background: rgba(255,255,255,.07);
+}
+
+.hero-terminal {
+  margin-top: 60px;
+  width: 100%;
+  max-width: 640px;
+  background: #0c1018;
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: 0 24px 64px rgba(0,0,0,.5);
+}
+.terminal-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 18px;
+  background: rgba(255,255,255,.03);
+  border-bottom: 1px solid rgba(255,255,255,.06);
+}
+.terminal-dot { width: 12px; height: 12px; border-radius: 50%; }
+.terminal-dot.rd { background: #ff5f57; }
+.terminal-dot.yl { background: #febc2e; }
+.terminal-dot.gr { background: #28c840; }
+.terminal-title {
+  margin-left: 12px;
+  font-size: .78rem;
+  color: var(--txt-dim);
+  font-family: var(--mono);
+}
+.terminal-body {
+  padding: 22px 24px;
+  font-family: var(--mono);
+  font-size: .88rem;
+  line-height: 2;
+  text-align: left;
+}
+.terminal-body .cmd { color: var(--accent-2); }
+.terminal-body .prompt { color: var(--accent); font-weight: 700; }
+.terminal-body .out { color: var(--txt-dim); }
+.terminal-body .ok { color: #28c840; }
+
+/* ============ SECTIONS GERAL ============ */
+section {
+  padding: 100px 6vw;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.section-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: .8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--accent);
+  margin-bottom: 16px;
+}
+.section-label .line {
+  width: 32px; height: 2px;
+  background: var(--grad);
+  border-radius: 2px;
+}
+
+h2 {
+  font-size: clamp(1.8rem, 4vw, 2.6rem);
+  font-weight: 800;
+  margin-bottom: 18px;
+  line-height: 1.2;
+}
+
+.section-desc {
+  color: var(--txt-dim);
+  font-size: 1.05rem;
+  max-width: 680px;
+  margin-bottom: 48px;
+  line-height: 1.8;
+}
+
+/* ============ CARDS GRID ============ */
+.cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 24px;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius);
+  padding: 32px 28px;
+  transition: transform .4s ease, border-color .4s ease, background .4s ease;
+  position: relative;
+  overflow: hidden;
+}
+.card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: var(--grad);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform .5s cubic-bezier(.25,.8,.25,1);
+}
+.card:hover {
+  transform: translateY(-6px);
+  border-color: rgba(124,108,255,.3);
+  background: rgba(255,255,255,.05);
+}
+.card:hover::before { transform: scaleX(1); }
+
+.card-icon {
+  width: 52px; height: 52px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(124,108,255,.2), rgba(56,217,200,.2));
+  border: 1px solid rgba(124,108,255,.25);
+  display: grid;
+  place-items: center;
+  font-size: 1.4rem;
+  margin-bottom: 22px;
+}
+.card h3 {
+  font-size: 1.2rem;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+.card p {
+  color: var(--txt-dim);
+  font-size: .95rem;
+  line-height: 1.7;
+}
+
+/* ============ STEPS ============ */
+.steps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 28px;
+  counter-reset: step;
+}
+.step {
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius);
+  padding: 32px 28px;
+  position: relative;
+  transition: transform .4s ease, border-color .4s ease;
+}
+.step:hover {
+  transform: translateY(-4px);
+  border-color: rgba(56,217,200,.3);
+}
+.step-num {
+  font-family: var(--mono);
+  font-size: .85rem;
+  font-weight: 700;
+  color: var(--accent-2);
+  letter-spacing: 1px;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.step-num::before {
+  content: '';
+  width: 28px; height: 28px;
+  border-radius: 8px;
+  background: var(--grad);
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-size: .8rem;
+}
+.step h3 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+.step p {
+  color: var(--txt-dim);
+  font-size: .93rem;
+  line-height: 1.7;
+}
+
+/* ============ CODE BLOCK ============ */
+.code-block {
+  background: #0c1018;
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: var(--radius);
+  overflow: hidden;
+  margin-top: 20px;
+  box-shadow: 0 12px 40px rgba(0,0,0,.4);
+}
+.code-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+  background: rgba(255,255,255,.03);
+  border-bottom: 1px solid rgba(255,255,255,.06);
+  font-family: var(--mono);
+  font-size: .8rem;
+  color: var(--txt-dim);
+}
+.copy-btn {
+  background: rgba(124,108,255,.15);
+  border: 1px solid rgba(124,108,255,.3);
+  color: var(--accent);
+  padding: 5px 12px;
+  border-radius: 8px;
+  font-size: .75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .3s;
+  font-family: var(--mono);
+}
+.copy-btn:hover {
+  background: rgba(124,108,255,.3);
+  color: #fff;
+}
+.code-body {
+  padding: 22px 24px;
+  font-family: var(--mono);
+  font-size: .88rem;
+  line-height: 1.9;
+  overflow-x: auto;
+}
+.code-body .c { color: var(--accent-2); }
+.code-body .p { color: var(--accent); font-weight: 700; }
+.code-body .o { color: var(--txt-dim); }
+.code-body .g { color: #28c840; }
+
+/* ============ MODELS TABLE ============ */
+.models-wrap {
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.models-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.models-table th, .models-table td {
+  padding: 18px 22px;
+  text-align: left;
+  border-bottom: 1px solid rgba(255,255,255,.06);
+}
+.models-table th {
+  background: rgba(255,255,255,.03);
+  font-size: .8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--txt-dim);
+}
+.models-table tr:last-child td { border-bottom: none; }
+.models-table tr:hover td { background: rgba(124,108,255,.04); }
+.model-name {
+  font-family: var(--mono);
+  font-weight: 700;
+  color: var(--accent-2);
+}
+.tag {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: .72rem;
+  font-weight: 600;
+  background: rgba(124,108,255,.15);
+  color: var(--accent);
+  border: 1px solid rgba(124,108,255,.25);
+}
+.tag.fast { background: rgba(56,217,200,.15); color: var(--accent-2); border-color: rgba(56,217,200,.25); }
+.tag.heavy { background: rgba(255,110,199,.15); color: var(--accent-3); border-color: rgba(255,110,199,.25); }
+
+/* ============ FAQ ============ */
+.faq-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.faq-item {
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  transition: border-color .3s;
+}
+.faq-item.open { border-color: rgba(124,108,255,.3); }
+.faq-q {
+  padding: 22px 26px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  font-weight: 600;
+  font-size: 1.02rem;
+  user-select: none;
+}
+.faq-q .plus {
+  width: 28px; height: 28px;
+  border-radius: 8px;
+  background: rgba(124,108,255,.15);
+  display: grid;
+  place-items: center;
+  color: var(--accent);
+  font-weight: 700;
+  transition: transform .35s ease, background .3s;
+  flex-shrink: 0;
+}
+.faq-item.open .plus {
+  transform: rotate(45deg);
+  background: var(--grad);
+  color: #fff;
+}
+.faq-a {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height .4s ease;
+}
+.faq-a-inner {
+  padding: 0 26px 24px;
+  color: var(--txt-dim);
+  line-height: 1.8;
+  font-size: .95rem;
+}
+
+/* ============ CTA ============ */
+.cta {
+  text-align: center;
+  padding: 80px 6vw;
+  background: linear-gradient(135deg, rgba(124,108,255,.12), rgba(56,217,200,.08));
+  border: 1px solid rgba(124,108,255,.2);
+  border-radius: calc(var(--radius) * 1.5);
+  margin: 60px auto;
+  max-width: 1100px;
+  position: relative;
+  overflow: hidden;
+}
+.cta::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 0%, rgba(124,108,255,.25), transparent 60%);
+  pointer-events: none;
+}
+.cta h2 { margin-bottom: 14px; position: relative; }
+.cta p {
+  color: var(--txt-dim);
+  max-width: 520px;
+  margin: 0 auto 32px;
+  position: relative;
+}
+.cta .hero-actions { position: relative; }
+
+/* ============ FOOTER ============ */
+footer {
+  border-top: 1px solid rgba(255,255,255,.06);
+  padding: 50px 6vw 30px;
+  margin-top: 60px;
+}
+.footer-grid {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr;
+  gap: 40px;
+  margin-bottom: 40px;
+}
+.footer-brand p {
+  color: var(--txt-dim);
+  font-size: .9rem;
+  margin-top: 14px;
+  max-width: 320px;
+  line-height: 1.7;
+}
+.footer-col h4 {
+  font-size: .85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  margin-bottom: 18px;
+  color: var(--txt);
+}
+.footer-col ul { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+.footer-col a {
+  color: var(--txt-dim);
+  text-decoration: none;
+  font-size: .9rem;
+  transition: color .3s;
+}
+.footer-col a:hover { color: var(--accent-2); }
+.footer-bottom {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding-top: 24px;
+  border-top: 1px solid rgba(255,255,255,.06);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+  color: var(--txt-dim);
+  font-size: .85rem;
+}
+.socials { display: flex; gap: 12px; }
+.socials a {
+  width: 36px; height: 36px;
+  border-radius: 10px;
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  display: grid;
+  place-items: center;
+  color: var(--txt-dim);
+  text-decoration: none;
+  transition: all .3s;
+}
+.socials a:hover {
+  color: var(--accent-2);
+  border-color: rgba(56,217,200,.4);
+  transform: translateY(-2px);
+}
+
+/* ============ ANIMAÇÕES SCROLL ============ */
+.reveal {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: opacity .8s ease, transform .8s ease;
+}
+.reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ============ RESPONSIVO ============ */
+@media (max-width: 860px) {
+  .nav-links {
+    position: fixed;
+    top: 70px; left: 0; right: 0;
+    flex-direction: column;
+    background: rgba(9,12,20,.96);
+    backdrop-filter: blur(20px);
+    padding: 30px 6vw;
+    gap: 22px;
+    transform: translateY(-120%);
+    transition: transform .4s ease;
+    border-bottom: 1px solid rgba(255,255,255,.06);
+  }
+  .nav-links.open { transform: translateY(0); }
+  .hamburger { display: flex; }
+
+  .footer-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  .footer-brand { grid-column: 1 / -1; }
+
+  .models-table th:nth-child(3),
+  .models-table td:nth-child(3) { display: none; }
+}
+
+@media (max-width: 520px) {
+  .footer-grid { grid-template-columns: 1fr; }
+  .hero-actions { flex-direction: column; width: 100%; }
+  .btn { width: 100%; justify-content: center; }
+  .models-table th:nth-child(4),
+  .models-table td:nth-child(4) { display: none; }
+}
+</style>
+</head>
+<body>
+
+<!-- FUNDO -->
+<div id="bg-grid"></div>
+<div class="glow-orb orb-1"></div>
+<div class="glow-orb orb-2"></div>
+<div class="glow-orb orb-3"></div>
+
+<!-- NAVBAR -->
+<nav id="navbar">
+  <a href="#" class="logo">
+    <span class="logo-mark">⚡</span>
+    <span>LocalAI<span style="color:var(--accent-2)">.</span>dev</span>
+  </a>
+  <ul class="nav-links" id="navLinks">
+    <li><a href="#features">Recursos</a></li>
+    <li><a href="#how">Como funciona</a></li>
+    <li><a href="#install">Instalação</a></li>
+    <li><a href="#models">Modelos</a></li>
+    <li><a href="#faq">FAQ</a></li>
+  </ul>
+  <button class="hamburger" id="hamburger" aria-label="Menu">
+    <span></span><span></span><span></span>
+  </button>
+</nav>
+
+<!-- HERO -->
+<header class="hero">
+  <div class="hero-badge">
+    <span class="dot"></span>
+    OPEN SOURCE • 100% LOCAL • ZERO CLOUD
+  </div>
+  <h1>Sua IA rodando<br/>na sua máquina.</h1>
+  <p>Combine o poder do <strong>Ollama</strong> com a interface do <strong>OpenCode</strong> e tenha um assistente de programação privado, rápido e totalmente offline. Sem APIs pagas, sem telemetria, sem limites.</p>
+  <div class="hero-actions">
+    <a href="#install" class="btn btn-primary">🚀 Começar agora</a>
+    <a href="#how" class="btn btn-ghost">📖 Como funciona</a>
+  </div>
+
+  <div class="hero-terminal">
+    <div class="terminal-bar">
+      <span class="terminal-dot rd"></span>
+      <span class="terminal-dot yl"></span>
+      <span class="terminal-dot gr"></span>
+      <span class="terminal-title">~/projetos — zsh</span>
+    </div>
+    <div class="terminal-body">
+      <div><span class="prompt">$</span> <span class="cmd">ollama</span> <span class="out">pull llama3.1:8b</span></div>
+      <div><span class="ok">✓</span> <span class="out">modelo baixado (4.7 GB)</span></div>
+      <div><span class="prompt">$</span> <span class="cmd">opencode</span> <span class="out">--provider ollama</span></div>
+      <div><span class="ok">✓</span> <span class="out">conectado em http://localhost:11434</span></div>
+      <div><span class="prompt">&gt;</span> <span class="out">refatore este módulo em TypeScript...</span></div>
+    </div>
+  </div>
+</header>
+
+<!-- FEATURES -->
+<section id="features" class="reveal">
+  <div class="section-label"><span class="line"></span> Recursos</div>
+  <h2>Tudo que você precisa,<br/>sem depender de ninguém.</h2>
+  <p class="section-desc">Uma stack pensada para desenvolvedores que valorizam privacidade, performance e controle total sobre suas ferramentas.</p>
+
+  <div class="cards-grid">
+    <div class="card">
+      <div class="card-icon">🔒</div>
+      <h3>Privacidade total</h3>
+      <p>Seu código nunca sai da sua máquina. Zero telemetria, zero envio para servidores externos. Ideal para projetos corporativos e dados sensíveis.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">⚡</div>
+      <h3>Latência mínima</h3>
+      <p>Sem chamadas de rede, sem filas de API. Respostas em milissegundos direto da sua GPU ou CPU, usando modelos otimizados com quantização.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">💸</div>
+      <h3>Custo zero</h3>
+      <p>Esqueça as contas mensais de OpenAI, Anthropic ou Google. Uma vez configurado, o uso é ilimitado e gratuito para sempre.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">🧠</div>
+      <h3>Modelos sob demanda</h3>
+      <p>Escolha entre Llama 3, Qwen, Mistral, DeepSeek e dezenas de outros. Troque de modelo com um comando, sem reinstalar nada.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">🛠️</div>
+      <h3>Integração nativa</h3>
+      <p>Ollama expõe uma API REST compatível com OpenAI. OpenCode se conecta automaticamente e já vem com ferramentas de edição de código prontas.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">🌐</div>
+      <h3>Funciona offline</h3>
+      <p>Trabalhe em aviões, trens ou lugares sem internet. Tudo roda localmente depois do download inicial dos modelos.</p>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section id="how" class="reveal">
+  <div class="section-label"><span class="line"></span> Como funciona</div>
+  <h2>3 passos para ter sua IA local.</h2>
+  <p class="section-desc">Do zero ao assistente funcional em menos de 5 minutos. Sem Docker, sem configurações complexas.</p>
+
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">PASSO 01</div>
+      <h3>Instale o Ollama</h3>
+      <p>Baixe o instalador oficial para macOS, Linux ou Windows. Ele cuida de tudo: runtime, drivers e dependências.</p>
+    </div>
+    <div class="step">
+      <div class="step-num">PASSO 02</div>
+      <h3>Baixe um modelo</h3>
+      <p>Execute <code style="color:var(--accent-2);font-family:var(--mono)">ollama pull llama3.1</code> e aguarde. Modelos de 7–8B rodam bem em 16GB de RAM.</p>
+    </div>
+    <div class="step">
+      <div class="step-num">PASSO 03</div>
+      <h3>Abra o OpenCode</h3>
+      <p>Configure o provider como "ollama" e comece a conversar com seu modelo diretamente no terminal, com acesso ao seu código.</p>
+    </div>
+  </div>
+</section>
+
+<!-- INSTALL -->
+<section id="install" class="reveal">
+  <div class="section-label"><span class="line"></span> Instalação</div>
+  <h2>Copie, cole, rode.</h2>
+  <p class="section-desc">Comandos prontos para cada sistema operacional. Tudo via terminal — como desenvolvedor gosta.</p>
+
+  <div class="code-block">
+    <div class="code-header">
+      <span>📦 macOS / Linux</span>
+      <button class="copy-btn" data-copy="mac">Copiar</button>
+    </div>
+    <div class="code-body" id="mac">
+<span class="c"># 1. Instalar o Ollama</span>
+<span class="p">$</span> curl -fsSL https://ollama.com/install.sh | sh
+
+<span class="c"># 2. Baixar um modelo (recomendado: llama3.1:8b)</span>
+<span class="p">$</span> ollama pull llama3.1:8b
+
+<span class="c"># 3. Instalar o OpenCode</span>
+<span class="p">$</span> npm install -g opencode
+
+<span class="c"># 4. Rodar!</span>
+<span class="p">$</span> opencode --provider ollama --model llama3.1:8b
+<span class="g">✓ pronto — assistente local ativo</span>
+    </div>
+  </div>
+
+  <div class="code-block" style="margin-top:24px">
+    <div class="code-header">
+      <span>🪟 Windows (PowerShell)</span>
+      <button class="copy-btn" data-copy="win">Copiar</button>
+    </div>
+    <div class="code-body" id="win">
+<span class="c"># Baixar o instalador oficial</span>
+<span class="p">PS&gt;</span> irm https://ollama.com/install.ps1 | iex
+
+<span class="c"># Baixar modelo e iniciar</span>
+<span class="p">PS&gt;</span> ollama pull llama3.1:8b
+<span class="p">PS&gt;</span> opencode --provider ollama
+    </div>
+  </div>
+</section>
+
+<!-- MODELS -->
+<section id="models" class="reveal">
+  <div class="section-label"><span class="line"></span> Modelos recomendados</div>
+  <h2>Qual modelo escolher?</h2>
+  <p class="section-desc">Cada modelo tem um perfil. Veja qual combina melhor com seu hardware e caso de uso.</p>
+
+  <div class="models-wrap">
+    <table class="models-table">
+      <thead>
+        <tr>
+          <th>Modelo</th>
+          <th>Tamanho</th>
+          <th>RAM mínima</th>
+          <th>Perfil</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="model-name">llama3.1:8b</td>
+          <td>4.7 GB</td>
+          <td>8 GB</td>
+          <td><span class="tag fast">Rápido</span></td>
+        </tr>
+        <tr>
+          <td class="model-name">qwen2.5:7b</td>
+          <td>4.5 GB</td>
+          <td>8 GB</td>
+          <td><span class="tag fast">Código</span></td>
+        </tr>
+        <tr>
+          <td class="model-name">mistral:7b</td>
+          <td>4.1 GB</td>
+          <td>8 GB</td>
+          <td><span class="tag fast">Balanceado</span></td>
+        </tr>
+        <tr>
+          <td class="model-name">deepseek-coder:6.7b</td>
+          <td>3.8 GB</td>
+          <td>8 GB</td>
+          <td><span class="tag fast">Especialista</span></td>
+        </tr>
+        <tr>
+          <td class="model-name">llama3.1:70b</td>
+          <td>40 GB</td>
+          <td>48 GB</td>
+          <td><span class="tag heavy">Pesado</span></td>
+        </tr>
+        <tr>
+          <td class="model-name">qwen2.5-coder:32b</td>
+          <td>19 GB</td>
+          <td>24 GB</td>
+          <td><span class="tag heavy">Top código</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section id="faq" class="reveal">
+  <div class="section-label"><span class="line"></span> Dúvidas frequentes</div>
+  <h2>Perguntas comuns.</h2>
+  <p class="section-desc">Tudo que você precisa saber antes de começar.</p>
+
+  <div class="faq-list">
+    <div class="faq-item">
+      <div class="faq-q">
+        <span>Preciso de uma GPU potente?</span>
+        <span class="plus">+</span>
+      </div>
+      <div class="faq-a"><div class="faq-a-inner">
+        Não obrigatoriamente. Modelos de 7–8B rodam tranquilamente em CPU com 16GB de RAM. Uma GPU (mesmo integrada) acelera muito a geração, mas não é requisito. Para modelos acima de 30B, aí sim uma GPU dedicada com 16GB+ de VRAM é recomendada.
+      </div></div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q">
+        <span>Posso usar em projetos comerciais?</span>
+        <span class="plus">+</span>
+      </div>
+      <div class="faq-a"><div class="faq-a-inner">
+        Sim! Modelos como Llama 3.1 e Qwen 2.5 têm licenças permissivas que permitem uso comercial. Sempre verifique a licença específica do modelo escolhido no repositório do Ollama.
+      </div></div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q">
+        <span>Funciona no Windows?</span>
+        <span class="plus">+</span>
+      </div>
+      <div class="faq-a"><div class="faq-a-inner">
+        Sim, o Ollama tem suporte nativo ao Windows (incluindo aceleração por GPU NVIDIA e AMD). O OpenCode roda via Node.js, então funciona em qualquer sistema com Node 18+.
+      </div></div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q">
+        <span>Posso treinar ou ajustar um modelo?</span>
+        <span class="plus">+</span>
+      </div>
+      <div class="faq-a"><div class="faq-a-inner">
+        O Ollama permite criar modelos customizados via <code style="color:var(--accent-2);font-family:var(--mono)">Modelfile</code>, ajustando system prompts, parâmetros e templates. Para fine-tuning real, você precisará de ferramentas como Unsloth ou LLaMA-Factory, e depois importar o resultado para o Ollama.
+      </div></div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q">
+        <span>E se eu ficar sem internet?</span>
+        <span class="plus">+</span>
+      </div>
+      <div class="faq-a"><div class="faq-a-inner">
+        Funciona normalmente! Depois de baixar o modelo uma única vez, tudo roda 100% offline. Ideal para viagens, ambientes restritos ou simplesmente para não depender de conexão.
+      </div></div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta reveal">
+  <h2>Pronto para rodar sua própria IA?</h2>
+  <p>Junte-se a milhares de devs que já abandonaram as APIs pagas e recuperaram o controle do seu fluxo de trabalho.</p>
+  <div class="hero-actions">
+    <a href="#install" class="btn btn-primary">🚀 Instalar agora</a>
+    <a href="https://github.com/ollama/ollama" target="_blank" class="btn btn-ghost">⭐ Ver no GitHub</a>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-grid">
+    <div class="footer-brand">
+      <a href="#" class="logo">
+        <span class="logo-mark">⚡</span>
+        <span>LocalAI<span style="color:var(--accent-2)">.</span>dev</span>
+      </a>
+      <p>Guia independente para rodar IA localmente com Ollama + OpenCode. Feito com ☕ por devs, para devs.</p>
+    </div>
+    <div class="footer-col">
+      <h4>Produto</h4>
+      <ul>
+        <li><a href="#features">Recursos</a></li>
+        <li><a href="#install">Instalação</a></li>
+        <li><a href="#models">Modelos</a></li>
+      </ul>
+    </div>
+    <div class="footer-col">
+      <h4>Recursos</h4>
+      <ul>
+        <li><a href="https://ollama.com" target="_blank">Ollama</a></li>
+        <li><a href="https://github.com/opencode-ai/opencode" target="_blank">OpenCode</a></li>
+        <li><a href="#faq">FAQ</a></li>
+      </ul>
+    </div>
+    <div class="footer-col">
+      <h4>Comunidade</h4>
+      <ul>
+        <li><a href="#">Discord</a></li>
+        <li><a href="#">Reddit</a></li>
+        <li><a href="#">Blog</a></li>
+      </ul>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <span>© 2026 LocalAI.dev — Conteúdo educativo. Ollama e OpenCode são marcas dos seus respectivos autores.</span>
+    <div class="socials">
+      <a href="#" aria-label="GitHub">🐙</a>
+      <a href="#" aria-label="Twitter">🐦</a>
+      <a href="#" aria-label="Discord">💬</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+/* ============ NAVBAR SCROLL ============ */
+const nav = document.getElementById('navbar');
+window.addEventListener('scroll', () => {
+  nav.classList.toggle('scrolled', window.scrollY > 40);
+});
+
+/* ============ HAMBURGER ============ */
+const hamburger = document.getElementById('hamburger');
+const navLinks = document.getElementById('navLinks');
+hamburger.addEventListener('click', () => {
+  hamburger.classList.toggle('open');
+  navLinks.classList.toggle('open');
+});
+navLinks.querySelectorAll('a').forEach(a => {
+  a.addEventListener('click', () => {
+    hamburger.classList.remove('open');
+    navLinks.classList.remove('open');
+  });
+});
+
+/* ============ REVEAL ON SCROLL ============ */
+const reveals = document.querySelectorAll('.reveal');
+const io = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      e.target.classList.add('visible');
+      io.unobserve(e.target);
+    }
+  });
+}, { threshold: 0.12 });
+reveals.forEach(r => io.observe(r));
+
+/* ============ FAQ ACCORDION ============ */
+document.querySelectorAll('.faq-item').forEach(item => {
+  const q = item.querySelector('.faq-q');
+  const a = item.querySelector('.faq-a');
+  q.addEventListener('click', () => {
+    const isOpen = item.classList.contains('open');
+    document.querySelectorAll('.faq-item').forEach(i => {
+      i.classList.remove('open');
+      i.querySelector('.faq-a').style.maxHeight = null;
+    });
+    if (!isOpen) {
+      item.classList.add('open');
+      a.style.maxHeight = a.scrollHeight + 'px';
+    }
+  });
+});
+
+/* ============ COPY BUTTONS ============ */
+document.querySelectorAll('.copy-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const id = btn.dataset.copy;
+    const el = document.getElementById(id);
+    const text = el.innerText;
+    navigator.clipboard.writeText(text).then(() => {
+      const original = btn.textContent;
+      btn.textContent = '✓ Copiado!';
+      btn.style.color = '#28c840';
+      setTimeout(() => {
+        btn.textContent = original;
+        btn.style.color = '';
+      }, 1800);
+    });
+  });
+});
+</script>
+
+</body>
+</html>
