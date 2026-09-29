@@ -14,10 +14,12 @@
 ## 📸 Preview
 
 <p align="center">
-  <img src="docs/preview.png" alt="Preview do site" width="800" />
+  <a href="https://vitormenoli.github.io/Ollama-com-OpenCode/">
+    <img src="https://i.imgur.com/3MOyvSk.png" alt="Preview do site" width="800" />
+  </a>
 </p>
 
-> 💡 *Adicione uma screenshot em `docs/preview.png` para exibir aqui.*
+> 🚀 [Veja o Site aqui](https://vitormenoli.github.io/Ollama-com-OpenCode/)
 
 ---
 
@@ -159,52 +161,11 @@ vercel --prod
 
 ---
 
-## 🤝 Contribuindo
-
-Contribuições são bem-vindas! 🎉
-
-1. Fork o projeto (`gh repo fork seu-usuario/localai-dev`)
-2. Crie uma branch (`git checkout -b feature/nova-feature`)
-3. Commit suas mudanças (`git commit -m 'feat: adiciona X'`)
-4. Push para a branch (`git push origin feature/nova-feature`)
-5. Abra um Pull Request
-
-### Ideias de contribuição
-
-- [ ] Adicionar modo claro (light mode)
-- [ ] Traduzir para inglês/espanhol
-- [ ] Adicionar mais modelos na tabela
-- [ ] Integrar analytics (Plausible/Umami)
-- [ ] Adicionar seção de tutoriais em vídeo
-- [ ] Melhorar acessibilidade (WCAG AA)
-
----
-
-## 📝 Licença
-
-Este projeto está sob a licença **MIT**. Veja o arquivo [LICENSE](LICENSE) para detalhes.
-
-```
-MIT License — use, modifique e distribua livremente.
-```
-
----
-
 ## 🙏 Créditos
 
 - **[Ollama](https://ollama.com)** — runtime local de modelos LLM
 - **[OpenCode](https://github.com/opencode-ai/opencode)** — interface terminal para IA
 - Design inspirado em landing pages modernas de produtos developer-first
-
----
-
-## 📬 Contato
-
-Criado com ☕ por **[Seu Nome](https://github.com/seu-usuario)**
-
-- 🐙 GitHub: [@seu-usuario](https://github.com/seu-usuario)
-- 🐦 Twitter: [@seu-usuario](https://twitter.com/seu-usuario)
-- 💼 LinkedIn: [Seu Nome](https://linkedin.com/in/seu-usuario)
 
 ---
 
